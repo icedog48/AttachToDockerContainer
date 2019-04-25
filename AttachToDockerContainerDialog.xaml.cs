@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using Microsoft.VisualStudio.PlatformUI;
@@ -9,6 +11,8 @@ namespace AttachToDockerContainer
 {
     public partial class AttachToDockerContainerDialog : DialogWindow
     {
+        public ContainerToAttachInfo ContainerToAttachInfo { get; set; }
+
         private const string VsDbgDefaultPath = "/vsdbg/vsdbg";
 
         private readonly IServiceProvider _serviceProvider;
@@ -18,29 +22,45 @@ namespace AttachToDockerContainer
             ThreadHelper.ThrowIfNotOnUIThread();
 
             _serviceProvider = serviceProvider;
+
             InitializeComponent();
 
             var containerNames = GetContainerNames();
+
             var (previousContainer, previousVsDbgPath) = GetSettings();
 
-            ContainerComboBox.ItemsSource = GetContainerNames();
-            ContainerComboBox.Text = containerNames.Contains(previousContainer)
-                ? previousContainer
-                : containerNames.FirstOrDefault();
+            this.ContainerToAttachInfo = new ContainerToAttachInfo();
 
-            VsDbgPathTextBox.Text = previousVsDbgPath ?? VsDbgDefaultPath;
+            this.ContainerToAttachInfo.PropertyChanged += ContainerToAttachInfo_PropertyChanged;
+            this.ContainerToAttachInfo.VSDBGPath = previousVsDbgPath ?? VsDbgDefaultPath; 
+            this.ContainerToAttachInfo.ContainerNames = containerNames;
+            this.ContainerToAttachInfo.ContainerName =  containerNames.Contains(previousContainer)
+                                                            ? previousContainer
+                                                            : containerNames.FirstOrDefault();
+        }
+
+        private void ContainerToAttachInfo_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == "ContainerName")
+            {
+                if (this.ContainerToAttachInfo.ContainerName != default(string))
+                {
+                    this.ContainerToAttachInfo.ProcessIds = GetProcessIdsFromContainer(this.ContainerToAttachInfo.ContainerName);
+                }
+            }
         }
 
         private void AttachButton_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
 
-            var containerName = ContainerComboBox.Text;
-            var vsDbgPath = VsDbgPathTextBox.Text;
+            SetSettings(this.ContainerToAttachInfo.ContainerName, 
+                        this.ContainerToAttachInfo.VSDBGPath);
 
-            SetSettings(containerName, vsDbgPath);
+            DebugAdapterHostLauncher.Instance.Launch(this.ContainerToAttachInfo.ContainerName,
+                                                     this.ContainerToAttachInfo.ProcessId,
+                                                     this.ContainerToAttachInfo.VSDBGPath);
 
-            DebugAdapterHostLauncher.Instance.Launch(containerName, vsDbgPath);
             Close();
         }
 
@@ -54,6 +74,16 @@ namespace AttachToDockerContainer
                 .ToArray();
         }
 
+        private string[] GetProcessIdsFromContainer(string containerName)
+        {
+            var dotnetPids = DockerCli.Execute($"exec -it {containerName} pidof dotnet");
+
+            return dotnetPids
+                        .Split(new[] { "\r\n", "\r", "\n", " " }, StringSplitOptions.RemoveEmptyEntries)
+                            .OrderBy(n => n)
+                                .ToArray();
+        }
+
         private (string container, string vsDbg) GetSettings()
         {
             const string collectionPath = nameof(AttachToDockerContainerDialog);
@@ -61,6 +91,7 @@ namespace AttachToDockerContainer
             ThreadHelper.ThrowIfNotOnUIThread();
 
             SettingsStore.CollectionExists(collectionPath, out int exists);
+
             if (exists != 1)
             {
                 SettingsStore.CreateCollection(collectionPath);
@@ -72,7 +103,7 @@ namespace AttachToDockerContainer
             return (container, vsdbg);
         }
 
-        private void SetSettings(string container, string vsdbg)
+        private void SetSettings(string containerName, string vsdbgPath)
         {
             const string collectionPath = nameof(AttachToDockerContainerDialog);
 
@@ -84,11 +115,12 @@ namespace AttachToDockerContainer
                 SettingsStore.CreateCollection(collectionPath);
             }
 
-            SettingsStore.SetString(collectionPath, "container", container);
-            SettingsStore.SetString(collectionPath, "vsdbg", vsdbg);
+            SettingsStore.SetString(collectionPath, "containerName", containerName);
+            SettingsStore.SetString(collectionPath, "vsdbgPath", vsdbgPath);
         }
 
         private IVsWritableSettingsStore _settingsStore = null;
+
         private IVsWritableSettingsStore SettingsStore
         {
             get

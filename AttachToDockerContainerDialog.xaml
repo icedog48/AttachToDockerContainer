@@ -5,7 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-    Height="150" 
+    Height="199" 
     Width="350"
     ResizeMode="NoResize"
     Title="Attach to Docker container">
@@ -15,9 +15,9 @@
             Click="AttachButton_Click"
             Content="Attach" 
             HorizontalAlignment="Left"
-            Margin="135,85,0,0" 
+            Margin="244,128,0,0" 
             VerticalAlignment="Top" 
-            Width="75"/>
+            Width="75" RenderTransformOrigin="2.227,0.3"/>
         <ComboBox 
             x:Name="ContainerComboBox"
             HorizontalAlignment="Left" 
@@ -26,15 +26,20 @@
             Width="198" 
             IsEditable="True" 
             IsTextSearchEnabled="True" 
-            IsSynchronizedWithCurrentItem="True"/>
+            IsSynchronizedWithCurrentItem="True"
+            ItemsSource="{Binding ContainerToAttachInfo.ContainerNames, RelativeSource={RelativeSource AncestorType=Window}}"
+            SelectedItem="{Binding ContainerToAttachInfo.ContainerName, RelativeSource={RelativeSource AncestorType=Window}}"
+            />
         <TextBox 
             x:Name="VsDbgPathTextBox"
             HorizontalAlignment="Left" 
             Height="23"
-            Margin="121,41,0,0"
+            Margin="121,90,0,0"
             TextWrapping="Wrap"
             VerticalAlignment="Top" 
-            Width="198"/>
+            Width="198"
+            Text="{Binding ContainerToAttachInfo.VSDBGPath, RelativeSource={RelativeSource AncestorType=Window}}"
+            />
         <Label 
             Content="Container:" 
             HorizontalAlignment="Left" 
@@ -46,7 +51,26 @@
             Content="VSDBG path:" 
             HorizontalAlignment="Left" 
             VerticalAlignment="Top" 
-            Margin="10,38,0,0" 
+            Margin="10,87,0,0" 
             Width="85"/>
+        <ComboBox 
+            x:Name="ProcessIdCombobox"
+            HorizontalAlignment="Left" 
+            Margin="121,50,0,0"
+            VerticalAlignment="Top" 
+            Width="198" 
+            IsEditable="True" 
+            IsTextSearchEnabled="True" 
+            IsSynchronizedWithCurrentItem="True"
+            ItemsSource="{Binding ContainerToAttachInfo.ProcessIds, RelativeSource={RelativeSource AncestorType=Window}}"
+            SelectedItem="{Binding ContainerToAttachInfo.ProcessId, RelativeSource={RelativeSource AncestorType=Window}}"
+            />
+        <Label 
+            Content="Process" 
+            HorizontalAlignment="Left" 
+            Margin="10,46,0,0" 
+            VerticalAlignment="Top"
+            RenderTransformOrigin="0.196,0.31" 
+            Width="111" Height="34"/>
     </Grid>
 </platformui:DialogWindow>
